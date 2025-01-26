@@ -7,10 +7,33 @@
 #include "../ext/logger/logger.h"
 
 
-struct vector3_t
+struct Vector3
 {
     float x, y, z;
 };
+struct Vector2
+{
+    float x, y;
+};
+
+
+class playerent
+{
+public:
+    char pad_0000[4]; //0x0000
+    Vector3 vLocationHead; //0x0004
+    char pad_0010[24]; //0x0010
+    Vector3 vLocationFeet; //0x0028
+    Vector2 vViewangle; //0x0034
+    char pad_003C[56]; //0x003C
+    int32_t movedirection; //0x0074
+    char pad_0078[116]; //0x0078
+    int32_t iHealth; //0x00EC
+    int32_t iArmor; //0x00F0
+    char pad_00F4[273]; //0x00F4
+    char szName[16]; //0x0205
+    char pad_0215[1525]; //0x0215
+}; //Size: 0x080A
 
 
 void Setup(HMODULE hInstance) {
@@ -19,33 +42,36 @@ void Setup(HMODULE hInstance) {
 
     //setting up most important stuff.
     uintptr_t module_base = (uintptr_t)GetModuleHandle(L"ac_client.exe");
-    uintptr_t playerent = *reinterpret_cast<uintptr_t*>(module_base + 0x0017E0A8);
+    uintptr_t entitylist = *reinterpret_cast<uintptr_t*>(module_base + 0x0018AC00 + 0x4);
 
-    //logging setup
+    playerent* localplayer = *reinterpret_cast<playerent**>(module_base + 0x17E0A8);
+
     logger::log(logger::success, "Injected successfully.");
     logger::log(logger::info, "base addr: %p", module_base);
-    logger::log(logger::info, "player: %p", playerent);
 
     while (!GetAsyncKeyState(VK_END) & 1) {
-        
 
-        int health = *reinterpret_cast<int*>(playerent + 0xEC);
-        int ar_mag = *reinterpret_cast<int*>(playerent + 0x14);
-        vector3_t lp_pos = *reinterpret_cast<vector3_t*>(playerent + 0x28);
-        vector3_t lp_viewangle = *reinterpret_cast<vector3_t*>(playerent + 0x34);
+        uintptr_t max_players = *(int*)(module_base + 0x0018AC00 + 0xC);
 
-        //Entity list. First valid entity is 0x4. Always incremented by 0x4.
-        uintptr_t entity_list_ptr = *reinterpret_cast<uintptr_t*>(module_base + 0x18AC04);
+        if (!localplayer)
+            continue;
 
+        if (GetAsyncKeyState(VK_INSERT) & 1) {
+            localplayer->vLocationFeet = { 0, 0, 0 };
 
-        for (int i = 0; i < 64; i++) {
-            if (!entity_list_ptr)
+        }
+
+        for (int i = 0; i < max_players; i++) {
+            if (!entitylist)
                 continue;
-            uintptr_t entity = *reinterpret_cast<uintptr_t*>(entity_list_ptr + (0x4 * i));
+            playerent* entity = *reinterpret_cast<playerent**>(entitylist + (0x4 * i));
             if (!entity)
                 continue;
-
-            printf("ent: %p \n", entity);
+            printf("entity health %i \n", entity->iHealth);
+            printf("entity name: %s \n", entity->szName);
+            printf("entity pos: %f %f %f \n", entity->vLocationFeet.x, entity->vLocationFeet.y, entity->vLocationFeet.z);
+            printf("lp location: %f %f %f \n", localplayer->vLocationFeet.x, localplayer->vLocationFeet.y, localplayer->vLocationFeet.z);
+            entity->vLocationFeet = localplayer->vLocationFeet;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

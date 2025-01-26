@@ -402,3 +402,4 @@ FodyWeavers.xsd
 *.sln.iml
 /assaultcube/intermediate
 /assaultcube/build
+/reversing
